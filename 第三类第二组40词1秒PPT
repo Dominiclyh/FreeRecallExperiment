@@ -1,0 +1,48 @@
+import os
+from pptx import Presentation
+from pptx.util import Pt
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.dml.color import RGBColor
+
+# --- 40个词汇表 ---
+my_words = [
+    "牙刷", "逻辑", "零件", "窗帘", "磁铁", "信号", "楼梯", "塑料",
+    "浓度", "影子", "仓库", "皮带", "纸张", "角度", "衬衫", "木材",
+    "符号", "程度", "键盘", "围巾", "气候", "挂钩", "频道", "水泥",
+    "煤炭", "附件", "步骤", "深度", "招牌", "罐头", "油漆", "日历",
+    "纸箱", "纤维", "重量", "瓶盖", "铁塔", "玻璃", "毛巾", "范围"
+]
+
+PPT_OUTPUT = "Murdock_40Words_Display.pptx"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", PPT_OUTPUT)
+
+def create_ppt_only():
+    print("正在生成实验 PPT...")
+    prs = Presentation()
+    prs.slide_width = Pt(960)
+    prs.slide_height = Pt(540)
+
+    for word in my_words:
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor(255, 255, 255)
+
+        txBox = slide.shapes.add_textbox(0, 0, prs.slide_width, prs.slide_height)
+        tf = txBox.text_frame
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE 
+
+        p = tf.paragraphs[0]
+        p.text = word
+        p.alignment = PP_ALIGN.CENTER
+        
+        run = p.runs[0]
+        run.font.size = Pt(166)
+        run.font.bold = True
+        run.font.name = 'SimHei'
+        p.font.name = 'SimHei'
+
+    prs.save(DESKTOP)
+    print(f"✅ PPT 生成成功！已存至桌面: {PPT_OUTPUT}")
+
+if __name__ == "__main__":
+    create_ppt_only()
