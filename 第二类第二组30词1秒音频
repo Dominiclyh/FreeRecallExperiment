@@ -1,0 +1,79 @@
+import os
+import asyncio
+import edge_tts
+import subprocess
+
+# --- 实验配置：已替换为你指定的 30 个生活实物词汇 ---
+my_words = [
+    "板凳", "枕头", "抽屉", "手套", "楼梯", 
+    "树枝", "门票", "毛巾", "信封", "镜子", 
+    "纽扣", "花瓶", "锁头", "钉子", "篮子", 
+    "药丸", "粉笔", "瓦片", "绳子", "锅盖", 
+    "水缸", "扫帚", "炉子", "漏斗", "木桶", 
+    "秤杆", "风车", "草帽", "竹竿", "铁锅"
+]
+
+INTERVAL = 1.0  # 严格 1 秒一个词
+OUTPUT_NAME = "Murdock_30Words_Object_Set.mp3"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", OUTPUT_NAME)
+
+# 使用微软“晓晓”语音，自然且清晰
+VOICE = "zh-CN-XiaoxiaoNeural"
+
+async def generate_segments():
+    print(f"Step 1: 正在生成 30 个真人质感的语音片段...")
+    temp_files = []
+    for i, word in enumerate(my_words):
+        temp_mp3 = f"word_{i}.mp3"
+        # 异步调用 Edge TTS 云端生成
+        communicate = edge_tts.Communicate(word, VOICE)
+        await communicate.save(temp_mp3)
+        temp_files.append(temp_mp3)
+        print(f"  [{i+1}/30] 已生成语音: {word}")
+    return temp_files
+
+def ffmpeg_combine(temp_files):
+    print("\nStep 2: 正在利用 FFmpeg 进行物理级对齐 (每秒启动一次)...")
+    inputs = []
+    filter_parts = []
+    
+    # 核心对齐逻辑：利用 adelay 强制锁定启动时间戳
+    for i in range(len(temp_files)):
+        inputs.extend(["-i", temp_files[i]])
+        delay_ms = int(i * INTERVAL * 1000)
+        # 设定左右声道延迟，实现 0s, 1s, 2s... 的节奏
+        filter_parts.append(f"[{i}:a]adelay={delay_ms}|{delay_ms}[a{i}]")
+    
+    mix_filter = "".join(f"[a{i}]" for i in range(len(temp_files)))
+    # amix 将 30 条轨道合并，normalize=0 保持原始音量
+    final_filter = f"{';'.join(filter_parts)};{mix_filter}amix=inputs={len(temp_files)}:dropout_transition=0:normalize=0[out]"
+
+    cmd = [
+        "ffmpeg", "-y",
+        *inputs,
+        "-filter_complex", final_filter,
+        "-map", "[out]",
+        "-c:a", "libmp3lame",
+        "-b:a", "192k",
+        DESKTOP
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True)
+    if result.returncode != 0:
+        print(f"FFmpeg 合成出错: {result.stderr.decode()}")
+
+async def main():
+    temp_files = await generate_segments()
+    try:
+        ffmpeg_combine(temp_files)
+        print(f"\n--- 实验材料制作成功 ---")
+        print(f"✅ 真人声 MP3 已存至桌面: {OUTPUT_NAME}")
+        print(f"⏱️ 视频总长度: 30.00 秒")
+    finally:
+        # 清理临时工作文件
+        for f in temp_files:
+            if os.path.exists(f): os.remove(f)
+
+if __name__ == "__main__":
+    # 运行异步主函数
+    asyncio.run(main())
