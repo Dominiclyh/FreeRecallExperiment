@@ -1,0 +1,50 @@
+import os
+import asyncio
+import edge_tts
+import subprocess
+
+# --- 20个词汇表 ---
+my_words = [
+    "水泥", "衬衫", "浓度", "皮带", "附件", 
+    "符号", "围巾", "木材", "罐头", "重量", 
+    "气候", "瓶盖", "纸箱", "玻璃", "楼梯", 
+    "线索", "功能", "效率", "层面", "比例"
+]
+
+INTERVAL = 1.0 
+VOICE = "zh-CN-XiaoxiaoNeural"
+AUDIO_OUTPUT = "Murdock_20Words_Audio_Set.mp3"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", AUDIO_OUTPUT)
+
+async def generate_audio_only():
+    print("正在生成 20 个高清语音片段...")
+    temp_files = []
+    for i, word in enumerate(my_words):
+        temp_mp3 = f"tmp_20_{i}.mp3"
+        communicate = edge_tts.Communicate(word, VOICE)
+        await communicate.save(temp_mp3)
+        temp_files.append(temp_mp3)
+        print(f"  [进度] {i+1}/20: {word}")
+            
+    print("\n正在利用 FFmpeg 合成 1s 间隔的对齐音频...")
+    inputs = []
+    filter_parts = []
+    for i in range(len(temp_files)):
+        inputs.extend(["-i", temp_files[i]])
+        delay_ms = int(i * INTERVAL * 1000)
+        filter_parts.append(f"[{i}:a]adelay={delay_ms}|{delay_ms}[a{i}]")
+    
+    mix_filter = "".join(f"[a{i}]" for i in range(len(temp_files)))
+    final_filter = f"{';'.join(filter_parts)};{mix_filter}amix=inputs={len(temp_files)}:dropout_transition=0:normalize=0[out]"
+
+    cmd = ["ffmpeg", "-y", *inputs, "-filter_complex", final_filter, "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "192k", DESKTOP]
+    
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        print(f"\n✅ 音频生成成功！已存至桌面: {AUDIO_OUTPUT}")
+    finally:
+        for f in temp_files: 
+            if os.path.exists(f): os.remove(f)
+
+if __name__ == "__main__":
+    asyncio.run(generate_audio_only())
