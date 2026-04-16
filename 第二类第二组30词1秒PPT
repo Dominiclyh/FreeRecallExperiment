@@ -1,1 +1,71 @@
+import os
+from pptx import Presentation
+from pptx.util import Pt
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.dml.color import RGBColor
 
+# --- 实验词汇表（30个词） ---
+my_words = [
+    "板凳", "枕头", "抽屉", "手套", "楼梯", 
+    "树枝", "门票", "毛巾", "信封", "镜子", 
+    "纽扣", "花瓶", "锁头", "钉子", "篮子", 
+    "药丸", "粉笔", "瓦片", "绳子", "锅盖", 
+    "水缸", "扫帚", "炉子", "漏斗", "木桶", 
+    "秤杆", "风车", "草帽", "竹竿", "铁锅"
+]
+
+OUTPUT_NAME = "Murdock_30Words_Display.pptx"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", OUTPUT_NAME)
+
+def create_murdock_ppt_30():
+    print("正在生成 30 词版实验 PPT...")
+    prs = Presentation()
+
+    # 设置幻灯片为 16:9 比例 (宽 960, 高 540)
+    prs.slide_width = Pt(960)
+    prs.slide_height = Pt(540)
+
+    for word in my_words:
+        # 添加空白布局幻灯片
+        slide_layout = prs.slide_layouts[6] 
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # 背景设置为纯白
+        background = slide.background
+        fill = background.fill
+        fill.solid()
+        fill.fore_color.rgb = RGBColor(255, 255, 255)
+
+        # 添加覆盖全屏的文本框以确保绝对居中
+        txBox = slide.shapes.add_textbox(0, 0, prs.slide_width, prs.slide_height)
+        tf = txBox.text_frame
+        
+        # 核心设置：垂直居中
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE 
+        tf.word_wrap = True
+
+        # 设置段落、内容及水平居中
+        p = tf.paragraphs[0]
+        p.text = word
+        p.alignment = PP_ALIGN.CENTER 
+        
+        # 设置字体属性：黑体，166号，黑色，加粗
+        run = p.runs[0]
+        run.font.size = Pt(166)
+        run.font.bold = True
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        
+        # 设置字体名称为黑体 (SimHei)
+        run.font.name = 'SimHei'
+        p.font.name = 'SimHei'
+
+    # 保存文件到桌面
+    try:
+        prs.save(DESKTOP)
+        print(f"✅ 30词版 PPT 已成功生成！")
+        print(f"📍 文件已保存至桌面: {OUTPUT_NAME}")
+    except Exception as e:
+        print(f"❌ 保存失败，请检查 PPT 文件是否已在其他程序中打开: {e}")
+
+if __name__ == "__main__":
+    create_murdock_ppt_30()
