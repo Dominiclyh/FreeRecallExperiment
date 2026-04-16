@@ -1,31 +1,19 @@
-import os
-import asyncio
-import edge_tts
-import subprocess
+import os, asyncio, edge_tts, subprocess
 
-# --- 15个词汇表 ---
-my_words = [
-    "窗帘", "步骤", "磁铁", "频道", "牙刷", 
-    "程度", "招牌", "煤炭", "影子", "油漆", 
-    "键盘", "仓库", "纤维", "日历", "角度"
-]
-
-INTERVAL = 1.0 
+my_words = ["窗帘", "步骤", "磁铁", "频道", "牙刷", "程度", "招牌", "煤炭", "影子", "油漆", "键盘", "仓库", "纤维", "日历", "角度"]
+INTERVAL = 2.0  # 已更改为 2.0 秒
 VOICE = "zh-CN-XiaoxiaoNeural"
-AUDIO_OUTPUT = "Murdock_15Words_Audio.mp3"
+AUDIO_OUTPUT = "Murdock_15Words_2s_Audio.mp3"
 DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", AUDIO_OUTPUT)
 
-async def generate_audio_only():
-    print("正在生成 15 个高清语音片段...")
+async def generate_audio():
+    print("正在生成 15 个词的 2s 间隔音频...")
     temp_files = []
     for i, word in enumerate(my_words):
-        temp_mp3 = f"tmp_{i}.mp3"
-        communicate = edge_tts.Communicate(word, VOICE)
-        await communicate.save(temp_mp3)
+        temp_mp3 = f"t15_{i}.mp3"
+        await edge_tts.Communicate(word, VOICE).save(temp_mp3)
         temp_files.append(temp_mp3)
-        print(f"  [进度] {i+1}/15: {word}")
-            
-    print("\n正在利用 FFmpeg 合成对齐音频...")
+    
     inputs = []
     filter_parts = []
     for i in range(len(temp_files)):
@@ -35,15 +23,9 @@ async def generate_audio_only():
     
     mix_filter = "".join(f"[a{i}]" for i in range(len(temp_files)))
     final_filter = f"{';'.join(filter_parts)};{mix_filter}amix=inputs={len(temp_files)}:dropout_transition=0:normalize=0[out]"
-
     cmd = ["ffmpeg", "-y", *inputs, "-filter_complex", final_filter, "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "192k", DESKTOP]
-    
-    try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        print(f"\n✅ 音频生成成功！文件名: {AUDIO_OUTPUT}")
-    finally:
-        for f in temp_files: 
-            if os.path.exists(f): os.remove(f)
+    subprocess.run(cmd, check=True, capture_output=True)
+    for f in temp_files: os.remove(f)
+    print(f"✅ 15词音频(2s)已生成在桌面")
 
-if __name__ == "__main__":
-    asyncio.run(generate_audio_only())
+if __name__ == "__main__": asyncio.run(generate_audio())
