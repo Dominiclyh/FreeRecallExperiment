@@ -1,0 +1,63 @@
+import os
+import asyncio
+import edge_tts
+import subprocess
+
+# --- 实验配置 ---
+my_words = [
+    "苹果", "桌子", "河流", "天空", "学校", 
+    "森林", "电话", "雨伞", "书本", "面包", 
+    "火车", "石头", "窗户", "月亮", "牙齿", 
+    "杯子", "钱包", "道路", "灯光", "村庄"
+]
+
+INTERVAL = 1.0  # 单词间隔
+OUTPUT_NAME = "Murdock_Natural_Voice.mp3"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", OUTPUT_NAME)
+
+# 选择一个自然的发音人：zh-CN-XiaoxiaoNeural (晓晓) 或 zh-CN-YunxiNeural (云希)
+VOICE = "zh-CN-XiaoxiaoNeural"
+
+async def generate_segments():
+    print("Step 1: 正在生成真人质感的语音片段...")
+    temp_files = []
+    for i, word in enumerate(my_words):
+        temp_mp3 = f"word_{i}.mp3"
+        communicate = edge_tts.Communicate(word, VOICE)
+        await communicate.save(temp_mp3)
+        temp_files.append(temp_mp3)
+        print(f"  [已完成] {word}")
+    return temp_files
+
+def ffmpeg_combine(temp_files):
+    print("\nStep 2: 正在利用 FFmpeg 进行物理级对齐...")
+    inputs = []
+    filter_parts = []
+    for i in range(len(temp_files)):
+        inputs.extend(["-i", temp_files[i]])
+        delay_ms = int(i * INTERVAL * 1000)
+        filter_parts.append(f"[{i}:a]adelay={delay_ms}|{delay_ms}[a{i}]")
+    
+    mix_filter = "".join(f"[a{i}]" for i in range(len(temp_files)))
+    final_filter = f"{';'.join(filter_parts)};{mix_filter}amix=inputs={len(temp_files)}:dropout_transition=0:normalize=0[out]"
+
+    cmd = [
+        "ffmpeg", "-y", *inputs,
+        "-filter_complex", final_filter,
+        "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "192k",
+        DESKTOP
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+
+async def main():
+    temp_files = await generate_segments()
+    try:
+        ffmpeg_combine(temp_files)
+        print(f"\n✅ 搞定！真人质感的音频已生成在桌面: {OUTPUT_NAME}")
+    finally:
+        for f in temp_files:
+            if os.path.exists(f): os.remove(f)
+
+if __name__ == "__main__":
+    # 启动异步任务
+    asyncio.run(main())
