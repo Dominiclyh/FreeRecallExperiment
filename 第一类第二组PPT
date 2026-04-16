@@ -1,0 +1,68 @@
+import os
+from pptx import Presentation
+from pptx.util import Pt
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.dml.color import RGBColor
+
+# --- 实验词汇表（20个词） ---
+my_words = [
+    "苹果", "桌子", "河流", "天空", "学校", 
+    "森林", "电话", "雨伞", "书本", "面包", 
+    "火车", "石头", "窗户", "月亮", "牙齿", 
+    "杯子", "钱包", "道路", "灯光", "村庄"
+]
+
+OUTPUT_NAME = "Murdock_20Words_Display.pptx"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", OUTPUT_NAME)
+
+def create_murdock_ppt_20():
+    prs = Presentation()
+
+    # 设置幻灯片为 16:9 比例
+    prs.slide_width = Pt(960)
+    prs.slide_height = Pt(540)
+
+    for word in my_words:
+        # 添加空白幻灯片
+        slide_layout = prs.slide_layouts[6] 
+        slide = prs.slides.add_slide(slide_layout)
+        
+        # 纯白背景
+        background = slide.background
+        fill = background.fill
+        fill.solid()
+        fill.fore_color.rgb = RGBColor(255, 255, 255)
+
+        # 添加全屏文本框
+        txBox = slide.shapes.add_textbox(0, 0, prs.slide_width, prs.slide_height)
+        tf = txBox.text_frame
+        
+        # 垂直居中核心设置
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE 
+        tf.word_wrap = True
+
+        # 设置段落、内容及水平居中
+        p = tf.paragraphs[0]
+        p.text = word
+        p.alignment = PP_ALIGN.CENTER 
+        
+        # 设置字体：黑体，166号，黑色，加粗
+        run = p.runs[0]
+        run.font.size = Pt(166)
+        run.font.bold = True
+        run.font.color.rgb = RGBColor(0, 0, 0)
+        
+        # 兼容性：设置中文字体名为黑体
+        run.font.name = 'SimHei'
+        p.font.name = 'SimHei'
+
+    # 保存文件
+    try:
+        prs.save(DESKTOP)
+        print(f"✅ 20词版 PPT 已成功生成！")
+        print(f"📍 文件位置: {DESKTOP}")
+    except Exception as e:
+        print(f"❌ 保存失败，请检查 PPT 文件是否已打开: {e}")
+
+if __name__ == "__main__":
+    create_murdock_ppt_20()
