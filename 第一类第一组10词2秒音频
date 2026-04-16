@@ -1,0 +1,31 @@
+import os, asyncio, edge_tts, subprocess
+
+my_words = ["逻辑", "塑料", "挂钩", "信号", "纸张", "深度", "毛巾", "范围", "零件", "铁塔"]
+INTERVAL = 2.0  # 已更改为 2.0 秒
+VOICE = "zh-CN-XiaoxiaoNeural"
+AUDIO_OUTPUT = "Murdock_10Words_2s_Audio.mp3"
+DESKTOP = os.path.join(os.path.expanduser("~"), "Desktop", AUDIO_OUTPUT)
+
+async def generate_audio():
+    print("正在生成 10 个词的 2s 间隔音频...")
+    temp_files = []
+    for i, word in enumerate(my_words):
+        temp_mp3 = f"t10_{i}.mp3"
+        await edge_tts.Communicate(word, VOICE).save(temp_mp3)
+        temp_files.append(temp_mp3)
+    
+    inputs = []
+    filter_parts = []
+    for i in range(len(temp_files)):
+        inputs.extend(["-i", temp_files[i]])
+        delay_ms = int(i * INTERVAL * 1000)
+        filter_parts.append(f"[{i}:a]adelay={delay_ms}|{delay_ms}[a{i}]")
+    
+    mix_filter = "".join(f"[a{i}]" for i in range(len(temp_files)))
+    final_filter = f"{';'.join(filter_parts)};{mix_filter}amix=inputs={len(temp_files)}:dropout_transition=0:normalize=0[out]"
+    cmd = ["ffmpeg", "-y", *inputs, "-filter_complex", final_filter, "-map", "[out]", "-c:a", "libmp3lame", "-b:a", "192k", DESKTOP]
+    subprocess.run(cmd, check=True, capture_output=True)
+    for f in temp_files: os.remove(f)
+    print(f"✅ 10词音频(2s)已生成在桌面")
+
+if __name__ == "__main__": asyncio.run(generate_audio())
